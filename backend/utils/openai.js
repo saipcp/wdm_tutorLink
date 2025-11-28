@@ -3,9 +3,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const apiKey = process.env.OPENAI_API_KEY;
+let openai;
+
+if (apiKey) {
+  openai = new OpenAI({
+    apiKey: apiKey,
+  });
+} else {
+  console.warn("⚠️ OPENAI_API_KEY is missing. AI features will be disabled.");
+}
 
 /**
  * Generate a personalized study plan using OpenAI
