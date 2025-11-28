@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+backend/.env
+frontend/.env
+
+# System files
+.DS_Store
+
+# Documentation to exclude
+DEPLOYMENT_GUIDE.md
