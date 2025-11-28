@@ -97,6 +97,10 @@ Ensure the plan:
 - Includes varied session types for effective learning`;
 
   try {
+    if (!openai) {
+      throw new Error("OpenAI API key is not configured.");
+    }
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -140,6 +144,10 @@ export async function getStudyRecommendations({
 Provide 3-5 actionable recommendations to improve learning effectiveness.`;
 
   try {
+    if (!openai) {
+      return "AI recommendations unavailable (API key missing). Continue with your current plan.";
+    }
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
