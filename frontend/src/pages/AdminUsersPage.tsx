@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Edit, Trash2, UserPlus } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { adminApi, usersApi } from "../services/api";
+import { authApi, usersApi } from "../services/mockApi";
 import type { User as UserType } from "../types";
 
 const AdminUsersPage: React.FC = () => {
@@ -12,7 +12,16 @@ const AdminUsersPage: React.FC = () => {
   // Admin data queries
   const { data: allUsers } = useQuery({
     queryKey: ["allUsers"],
-    queryFn: () => adminApi.getAllUsers(),
+    queryFn: async () => {
+      // In a real app, this would be an admin API call
+      // For demo, we'll simulate by returning all mock users
+      const users = await Promise.all([
+        authApi.login("student@tutorlink.com", "password"),
+        authApi.login("tutor@tutorlink.com", "password"),
+        authApi.login("admin@tutorlink.com", "password"),
+      ]);
+      return users.map((u) => u.user).filter((u) => u !== null) as UserType[];
+    },
   });
 
   // Mutations
@@ -22,12 +31,7 @@ const AdminUsersPage: React.FC = () => {
       lastName: string;
       email: string;
       role: "student" | "tutor" | "admin";
-      password?: string;
-    }) =>
-      adminApi.createUser({
-        ...userData,
-        password: userData.password || "password",
-      }),
+    }) => authApi.register(userData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     },
@@ -35,14 +39,20 @@ const AdminUsersPage: React.FC = () => {
 
   const updateUserMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<UserType> }) =>
-      adminApi.updateUser(id, updates),
+      usersApi.updateProfile(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     },
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => adminApi.deleteUser(userId),
+    mutationFn: async (userId: string) => {
+      // In a real app, this would call a delete API
+      // For demo, we'll simulate by updating user status
+      await usersApi.updateProfile(userId, {
+        updatedAt: new Date().toISOString(),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allUsers"] });
     },
@@ -58,51 +68,16 @@ const AdminUsersPage: React.FC = () => {
     role: "student" as "student" | "tutor" | "admin",
   });
 
-  const [userFormErrors, setUserFormErrors] = useState<Record<string, string>>(
-    {}
-  );
-
-  const validateUserForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (!newUser.firstName.trim()) {
-      errors.firstName = "First name is required";
-    } else if (newUser.firstName.trim().length < 2) {
-      errors.firstName = "First name must be at least 2 characters";
-    }
-
-    if (!newUser.lastName.trim()) {
-      errors.lastName = "Last name is required";
-    } else if (newUser.lastName.trim().length < 2) {
-      errors.lastName = "Last name must be at least 2 characters";
-    }
-
-    if (!newUser.email.trim()) {
-      errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUser.email)) {
-      errors.email = "Please enter a valid email address";
-    }
-
-    if (!newUser.role) {
-      errors.role = "Role is required";
-    }
-
-    setUserFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUserFormErrors({});
-
-    if (!validateUserForm()) {
+    if (
+      !newUser.firstName.trim() ||
+      !newUser.lastName.trim() ||
+      !newUser.email.trim()
+    )
       return;
-    }
 
-    await createUserMutation.mutateAsync({
-      ...newUser,
-      password: "password", // Admin should set a proper password
-    });
+    await createUserMutation.mutateAsync(newUser);
 
     setNewUser({
       firstName: "",
@@ -115,12 +90,6 @@ const AdminUsersPage: React.FC = () => {
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUserFormErrors({});
-
-    if (!validateUserForm()) {
-      return;
-    }
-
     if (!editingUser) return;
 
     await updateUserMutation.mutateAsync({
@@ -275,23 +244,13 @@ const AdminUsersPage: React.FC = () => {
                 <input
                   type="text"
                   value={newUser.firstName}
-                  onChange={(e) => {
-                    setNewUser({ ...newUser, firstName: e.target.value });
-                    if (userFormErrors.firstName) {
-                      setUserFormErrors({ ...userFormErrors, firstName: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    userFormErrors.firstName ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, firstName: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter first name"
                   required
                 />
-                {userFormErrors.firstName && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {userFormErrors.firstName}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -301,23 +260,13 @@ const AdminUsersPage: React.FC = () => {
                 <input
                   type="text"
                   value={newUser.lastName}
-                  onChange={(e) => {
-                    setNewUser({ ...newUser, lastName: e.target.value });
-                    if (userFormErrors.lastName) {
-                      setUserFormErrors({ ...userFormErrors, lastName: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    userFormErrors.lastName ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, lastName: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter last name"
                   required
                 />
-                {userFormErrors.lastName && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {userFormErrors.lastName}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -327,23 +276,13 @@ const AdminUsersPage: React.FC = () => {
                 <input
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => {
-                    setNewUser({ ...newUser, email: e.target.value });
-                    if (userFormErrors.email) {
-                      setUserFormErrors({ ...userFormErrors, email: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    userFormErrors.email ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter email address"
                   required
                 />
-                {userFormErrors.email && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {userFormErrors.email}
-                  </p>
-                )}
               </div>
 
               <div>

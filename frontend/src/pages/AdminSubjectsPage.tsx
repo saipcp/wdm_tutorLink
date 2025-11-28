@@ -1,13 +1,12 @@
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { BookOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { subjectsApi } from "../services/api";
+import { subjectsApi } from "../services/mockApi";
 import type { Subject } from "../types";
 
 const AdminSubjectsPage: React.FC = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   // Admin data queries
   const { data: subjects } = useQuery({
@@ -15,26 +14,12 @@ const AdminSubjectsPage: React.FC = () => {
     queryFn: () => subjectsApi.getAllSubjects(),
   });
 
-  // Mutations
-  const createSubjectMutation = useMutation({
-    mutationFn: (subjectData: { name: string; topics: string[] }) =>
-      subjectsApi.createSubject(subjectData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-    },
-  });
-
   // State for forms
   const [showSubjectForm, setShowSubjectForm] = useState(false);
-  const [subjectFormErrors, setSubjectFormErrors] = useState<
-    Record<string, string>
-  >({});
   const [newSubject, setNewSubject] = useState({
     name: "",
-    topics: [] as string[],
+    topics: [""],
   });
-  // raw input to allow typing commas and spaces naturally
-  const [newSubjectInput, setNewSubjectInput] = useState("");
 
   if (!user) return null;
 
@@ -48,10 +33,7 @@ const AdminSubjectsPage: React.FC = () => {
         </div>
         <div className="flex space-x-2">
           <button
-            onClick={() => {
-              setNewSubjectInput(newSubject.topics.join(", "));
-              setShowSubjectForm(true);
-            }}
+            onClick={() => setShowSubjectForm(true)}
             className="btn-primary flex items-center space-x-2"
           >
             <BookOpen className="h-4 w-4" />
@@ -105,39 +87,7 @@ const AdminSubjectsPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Add New Subject</h3>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const errors: Record<string, string> = {};
-
-                // parse topics from raw input
-                const parts = newSubjectInput
-                  .split(/[;,\n]+/)
-                  .map((t) => t.trim())
-                  .filter(Boolean);
-
-                if (!newSubject.name.trim()) {
-                  errors.name = "Subject name is required";
-                } else if (newSubject.name.trim().length < 2) {
-                  errors.name = "Subject name must be at least 2 characters";
-                } else if (newSubject.name.trim().length > 100) {
-                  errors.name = "Subject name must be less than 100 characters";
-                }
-
-                setSubjectFormErrors(errors);
-                if (Object.keys(errors).length > 0) {
-                  return;
-                }
-                await createSubjectMutation.mutateAsync({
-                  name: newSubject.name,
-                  topics: parts,
-                });
-                setNewSubject({ name: "", topics: [] });
-                setNewSubjectInput("");
-                setShowSubjectForm(false);
-              }}
-              className="space-y-4"
-            >
+            <form className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Name
@@ -145,23 +95,13 @@ const AdminSubjectsPage: React.FC = () => {
                 <input
                   type="text"
                   value={newSubject.name}
-                  onChange={(e) => {
-                    setNewSubject({ ...newSubject, name: e.target.value });
-                    if (subjectFormErrors.name) {
-                      setSubjectFormErrors({ ...subjectFormErrors, name: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    subjectFormErrors.name ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewSubject({ ...newSubject, name: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter subject name"
                   required
                 />
-                {subjectFormErrors.name && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {subjectFormErrors.name}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -170,16 +110,16 @@ const AdminSubjectsPage: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={newSubjectInput}
-                  onChange={(e) => setNewSubjectInput(e.target.value)}
-                  onBlur={() => {
-                    const parts = newSubjectInput
-                      .split(/[;,\n]+/)
-                      .map((t) => t.trim())
-                      .filter(Boolean);
-
-                    setNewSubject({ ...newSubject, topics: parts });
-                  }}
+                  value={newSubject.topics.join(", ")}
+                  onChange={(e) =>
+                    setNewSubject({
+                      ...newSubject,
+                      topics: e.target.value
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter((t) => t),
+                    })
+                  }
                   className="input-field"
                   placeholder="Enter topics separated by commas"
                 />
@@ -190,21 +130,18 @@ const AdminSubjectsPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowSubjectForm(false);
-                    setNewSubject({ name: "", topics: [] });
-                    setNewSubjectInput("");
+                    setNewSubject({ name: "", topics: [""] });
                   }}
                   className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => setShowSubjectForm(false)}
                   className="btn-primary"
-                  disabled={createSubjectMutation.isPending}
                 >
-                  {createSubjectMutation.isPending
-                    ? "Adding..."
-                    : "Add Subject"}
+                  Add Subject
                 </button>
               </div>
             </form>

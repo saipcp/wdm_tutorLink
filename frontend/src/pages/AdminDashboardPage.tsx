@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   BookOpen,
@@ -12,27 +11,29 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import {
-  adminApi,
+  authApi,
   subjectsApi,
   sessionsApi,
   reviewsApi,
-} from "../services/api";
+} from "../services/mockApi";
 import type { User as UserType, Session } from "../types";
 
 const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Admin data queries
   const { data: allUsers } = useQuery({
     queryKey: ["allUsers"],
-    queryFn: () => adminApi.getAllUsers(),
-  });
-
-  const { data: adminStats } = useQuery({
-    queryKey: ["adminStats"],
-    queryFn: () => adminApi.getAdminStats(),
+    queryFn: async () => {
+      // In a real app, this would be an admin API call
+      // For demo, we'll simulate by returning all mock users
+      const users = await Promise.all([
+        authApi.login("student@tutorlink.com", "password"),
+        authApi.login("tutor@tutorlink.com", "password"),
+        authApi.login("admin@tutorlink.com", "password"),
+      ]);
+      return users.map((u) => u.user).filter((u) => u !== null) as UserType[];
+    },
   });
 
   const { data: subjects } = useQuery({
@@ -42,13 +43,40 @@ const AdminDashboardPage: React.FC = () => {
 
   const { data: allSessions } = useQuery({
     queryKey: ["allSessions"],
-    queryFn: () => adminApi.getAllSessions(),
+    queryFn: async () => {
+      // Get sessions for all users (admin view)
+      const users = allUsers || [];
+      const allSessions: Session[] = [];
+
+      for (const user of users) {
+        try {
+          const sessions = await sessionsApi.getSessions(
+            user.id,
+            user.role as "student" | "tutor"
+          );
+          allSessions.push(...sessions);
+        } catch (error) {
+          // Ignore errors for users without sessions
+        }
+      }
+
+      return allSessions;
+    },
+    enabled: !!allUsers?.length,
   });
 
-  // Use stats from admin API instead of fetching all sessions
-  const totalSessions = adminStats?.totalSessions || 0;
-  const completedSessions = adminStats?.completedSessions || 0;
-  const totalReviews = adminStats?.totalReviews || 0;
+  const { data: reviews } = useQuery({
+    queryKey: ["allReviews"],
+    queryFn: async () => {
+      // Get all reviews for admin view
+      const allReviews = await Promise.all([
+        reviewsApi.getReviewsByTutorId("1"), // Student demo account
+        reviewsApi.getReviewsByTutorId("2"), // Tutor demo account
+        reviewsApi.getReviewsByTutorId("3"), // Admin demo account
+      ]);
+      return allReviews.flat();
+    },
+  });
 
   // State for forms
   const [showUserForm, setShowUserForm] = useState(false);
@@ -63,48 +91,7 @@ const AdminDashboardPage: React.FC = () => {
 
   const [newSubject, setNewSubject] = useState({
     name: "",
-    // store topics as an array of strings
-    topics: [] as string[],
-  });
-  // raw input for topics so typing commas/spaces isn't interrupted
-  const [newSubjectInput, setNewSubjectInput] = useState("");
-
-  const createSubjectMutation = useMutation({
-    mutationFn: (subjectData: { name: string; topics: string[] }) =>
-      subjectsApi.createSubject(subjectData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-    },
-  });
-
-  const createUserMutation = useMutation({
-    mutationFn: (userData: typeof newUser & { password: string }) =>
-      adminApi.createUser({
-        ...userData,
-        password: userData.password || "password",
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-    },
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Partial<UserType> }) =>
-      adminApi.updateUser(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-    },
-  });
-
-  const deleteUserMutation = useMutation({
-    mutationFn: (userId: string) => adminApi.deleteUser(userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allUsers"] });
-      queryClient.invalidateQueries({ queryKey: ["adminStats"] });
-    },
+    topics: [""],
   });
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -116,11 +103,7 @@ const AdminDashboardPage: React.FC = () => {
     )
       return;
 
-    await createUserMutation.mutateAsync({
-      ...newUser,
-      password: "password", // Admin should set a proper password
-    });
-
+    // TODO: Implement create user mutation
     setNewUser({
       firstName: "",
       lastName: "",
@@ -134,11 +117,7 @@ const AdminDashboardPage: React.FC = () => {
     e.preventDefault();
     if (!editingUser) return;
 
-    await updateUserMutation.mutateAsync({
-      id: editingUser.id,
-      updates: newUser,
-    });
-
+    // TODO: Implement update user mutation
     setEditingUser(null);
     setNewUser({
       firstName: "",
@@ -154,7 +133,7 @@ const AdminDashboardPage: React.FC = () => {
         "Are you sure you want to delete this user? This action cannot be undone."
       )
     ) {
-      await deleteUserMutation.mutateAsync(userId);
+      // TODO: Implement delete user mutation
     }
   };
 
@@ -168,17 +147,15 @@ const AdminDashboardPage: React.FC = () => {
     });
   };
 
-  // Calculate analytics from API data
-  const totalUsers = adminStats?.totalUsers || allUsers?.length || 0;
+  // Calculate analytics
+  const totalUsers = allUsers?.length || 0;
   const totalStudents =
-    adminStats?.students ||
-    allUsers?.filter((u) => u.role === "student").length ||
-    0;
-  const totalTutors =
-    adminStats?.tutors ||
-    allUsers?.filter((u) => u.role === "tutor").length ||
-    0;
-  const totalSubjects = subjects?.length || adminStats?.totalSubjects || 0;
+    allUsers?.filter((u) => u.role === "student").length || 0;
+  const totalTutors = allUsers?.filter((u) => u.role === "tutor").length || 0;
+  const totalSessions = allSessions?.length || 0;
+  const completedSessions =
+    allSessions?.filter((s) => s.status === "completed").length || 0;
+  const totalSubjects = subjects?.length || 0;
 
   if (!user) return null;
 
@@ -199,11 +176,7 @@ const AdminDashboardPage: React.FC = () => {
             <span>Add User</span>
           </button>
           <button
-            onClick={() => {
-              // seed the raw input when opening the modal
-              setNewSubjectInput(newSubject.topics.join(", "));
-              setShowSubjectForm(true);
-            }}
+            onClick={() => setShowSubjectForm(true)}
             className="btn-secondary flex items-center space-x-2"
           >
             <BookOpen className="h-4 w-4" />
@@ -211,7 +184,18 @@ const AdminDashboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Dashboard Analytics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="card text-center">
+          <Users className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-gray-900">{totalUsers}</div>
+          <div className="text-sm text-gray-600">Total Users</div>
+          <div className="text-xs text-gray-500 mt-1">
+            {totalStudents} students, {totalTutors} tutors
+          </div>
+        </div>
+
         <div className="card text-center">
           <BookOpen className="h-8 w-8 text-purple-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-gray-900">
@@ -294,10 +278,7 @@ const AdminDashboardPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div
-                  className="flex space-x-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="flex space-x-2">
                   <button
                     onClick={() => startEditUser(user)}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
@@ -316,14 +297,6 @@ const AdminDashboardPage: React.FC = () => {
             {!allUsers?.length && (
               <p className="text-gray-500 text-sm">No users found</p>
             )}
-            {allUsers && allUsers.length > 5 && (
-              <button
-                onClick={() => navigate("/admin/users")}
-                className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2"
-              >
-                View all {allUsers.length} users
-              </button>
-            )}
           </div>
         </div>
 
@@ -339,8 +312,7 @@ const AdminDashboardPage: React.FC = () => {
             {subjects?.slice(0, 5).map((subject) => (
               <div
                 key={subject.id}
-                onClick={() => navigate("/admin/subjects")}
-                className="p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                className="p-3 rounded-lg border border-gray-200"
               >
                 <div className="font-medium text-gray-900 mb-1">
                   {subject.name}
@@ -349,7 +321,7 @@ const AdminDashboardPage: React.FC = () => {
                   {subject.topics.length} topics
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {subject.topics.slice(0, 3).map((topic: any) => (
+                  {subject.topics.slice(0, 3).map((topic) => (
                     <span
                       key={topic.id}
                       className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded"
@@ -368,14 +340,6 @@ const AdminDashboardPage: React.FC = () => {
             {!subjects?.length && (
               <p className="text-gray-500 text-sm">No subjects found</p>
             )}
-            {subjects && subjects.length > 5 && (
-              <button
-                onClick={() => navigate("/admin/subjects")}
-                className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2"
-              >
-                View all {subjects.length} subjects
-              </button>
-            )}
           </div>
         </div>
 
@@ -388,16 +352,14 @@ const AdminDashboardPage: React.FC = () => {
             <BarChart3 className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-3">
-            {allSessions?.slice(0, 4).map((session: any) => (
+            {allSessions?.slice(0, 4).map((session) => (
               <div
                 key={session.id}
                 className="p-3 rounded-lg border border-gray-200"
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-medium text-gray-900">
-                    {session.subjectName || "Session"} -{" "}
-                    {session.tutorFirstName} {session.tutorLastName} &{" "}
-                    {session.studentFirstName} {session.studentLastName}
+                    Session #{session.id}
                   </div>
                   <div
                     className={`text-xs px-2 py-1 rounded ${
@@ -412,17 +374,8 @@ const AdminDashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {session.startAt ? (
-                    <>
-                      {new Date(session.startAt).toLocaleDateString()} at{" "}
-                      {new Date(session.startAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </>
-                  ) : (
-                    "Date not available"
-                  )}
+                  {new Date(session.startAt).toLocaleDateString()} at{" "}
+                  {new Date(session.startAt).toLocaleTimeString()}
                 </div>
                 {session.price && (
                   <div className="text-sm font-medium text-green-600 mt-1">
@@ -584,36 +537,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Add New Subject</h3>
-            <form
-              className="space-y-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-
-                // parse topics from raw input
-                const parts = newSubjectInput
-                  .split(/[;,\n]+/)
-                  .map((t) => t.trim())
-                  .filter(Boolean);
-
-                // validation
-                if (!newSubject.name.trim()) return;
-                if (!parts || parts.length === 0) return;
-
-                try {
-                  await createSubjectMutation.mutateAsync({
-                    name: newSubject.name.trim(),
-                    topics: parts,
-                  });
-
-                  setNewSubject({ name: "", topics: [] });
-                  setNewSubjectInput("");
-                  setShowSubjectForm(false);
-                } catch (err) {
-                  console.error("Create subject failed", err);
-                  alert("Failed to create subject — try again.");
-                }
-              }}
-            >
+            <form className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Subject Name
@@ -636,16 +560,16 @@ const AdminDashboardPage: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  value={newSubjectInput}
-                  onChange={(e) => setNewSubjectInput(e.target.value)}
-                  onBlur={() => {
-                    const parts = newSubjectInput
-                      .split(/[;,\n]+/)
-                      .map((t) => t.trim())
-                      .filter(Boolean);
-
-                    setNewSubject({ ...newSubject, topics: parts });
-                  }}
+                  value={newSubject.topics.join(", ")}
+                  onChange={(e) =>
+                    setNewSubject({
+                      ...newSubject,
+                      topics: e.target.value
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter((t) => t),
+                    })
+                  }
                   className="input-field"
                   placeholder="Enter topics separated by commas"
                 />
@@ -656,13 +580,17 @@ const AdminDashboardPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowSubjectForm(false);
-                    setNewSubject({ name: "", topics: [] });
+                    setNewSubject({ name: "", topics: [""] });
                   }}
                   className="btn-secondary"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary">
+                <button
+                  type="button"
+                  onClick={() => setShowSubjectForm(false)}
+                  className="btn-primary"
+                >
                   Add Subject
                 </button>
               </div>

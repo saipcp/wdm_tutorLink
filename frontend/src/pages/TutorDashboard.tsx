@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Calendar,
@@ -27,7 +26,6 @@ import {
   Phone,
   ChevronRight,
 } from "lucide-react";
-import ChatWidget from "../components/Chat/ChatWidget";
 import { useAuth } from "../context/AuthContext";
 import {
   sessionsApi,
@@ -36,13 +34,13 @@ import {
   messagingApi,
   reviewsApi,
   subjectsApi,
-} from "../services/api";
+} from "../services/mockApi";
 import type { Session, AvailabilitySlot, Review, Subject } from "../types";
+import { getUserById } from "../services/mockData";
 
 const TutorDashboard: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Dashboard data queries
   const { data: dashboardData } = useQuery({
@@ -59,19 +57,14 @@ const TutorDashboard: React.FC = () => {
 
   const { data: tutorProfile } = useQuery({
     queryKey: ["tutorProfile", user?.id],
-    queryFn: () => tutorsApi.getTutorByUserId(user!.id),
+    queryFn: () => tutorsApi.getTutorById(user!.id),
     enabled: !!user?.id,
   });
 
   const { data: reviews } = useQuery({
     queryKey: ["tutorReviews", user?.id],
-    queryFn: async () => {
-      if (tutorProfile?.id) {
-        return tutorsApi.getTutorReviews(tutorProfile.id);
-      }
-      return [];
-    },
-    enabled: !!user?.id && !!tutorProfile?.id,
+    queryFn: () => tutorsApi.getTutorReviews(user!.id),
+    enabled: !!user?.id,
   });
 
   const { data: conversations } = useQuery({
@@ -205,14 +198,11 @@ const TutorDashboard: React.FC = () => {
     return subjects?.find((s) => s.id === subjectId)?.name || "Unknown Subject";
   };
 
-  const getStudentName = (session: Session) => {
-    // Use student info from session if available
-    if ((session as any).studentFirstName && (session as any).studentLastName) {
-      return `${(session as any).studentFirstName} ${
-        (session as any).studentLastName
-      }`;
-    }
-    return `Student ${session.studentId.slice(-4)}`;
+  const getStudentName = (studentId: string) => {
+    const student = getUserById(studentId);
+    return student
+      ? `${student.firstName} ${student.lastName}`
+      : "Unknown Student";
   };
 
   const calculateEarnings = () => {
@@ -258,10 +248,7 @@ const TutorDashboard: React.FC = () => {
             <Settings className="h-4 w-4" />
             <span>Update Availability</span>
           </button>
-          <button
-            onClick={() => navigate("/tutor/settings")}
-            className="btn-secondary flex items-center space-x-2"
-          >
+          <button className="btn-secondary flex items-center space-x-2">
             <Eye className="h-4 w-4" />
             <span>View Profile</span>
           </button>
@@ -276,21 +263,15 @@ const TutorDashboard: React.FC = () => {
             <div className="text-right">
               <div className="text-xs text-gray-500">Today</div>
               <div className="text-sm font-medium text-blue-600">
-                {(Array.isArray(dashboardData?.upcomingSessions) &&
-                  dashboardData.upcomingSessions.filter((s: any) => {
-                    const today = new Date().toDateString();
-                    return new Date(s.startAt).toDateString() === today;
-                  }).length) ||
-                  0}
+                {dashboardData?.upcomingSessions.filter((s) => {
+                  const today = new Date().toDateString();
+                  return new Date(s.startAt).toDateString() === today;
+                }).length || 0}
               </div>
             </div>
           </div>
           <div className="text-2xl font-bold text-gray-900">
-            {Array.isArray(dashboardData?.upcomingSessions)
-              ? dashboardData.upcomingSessions.length
-              : typeof dashboardData?.upcomingSessions === "number"
-              ? dashboardData.upcomingSessions
-              : 0}
+            {dashboardData?.upcomingSessions.length || 0}
           </div>
           <div className="text-sm text-gray-600">Upcoming Sessions</div>
           <div className="flex items-center mt-1">
@@ -310,11 +291,7 @@ const TutorDashboard: React.FC = () => {
             </div>
           </div>
           <div className="text-2xl font-bold text-gray-900">
-            {typeof dashboardData?.completedSessions === "number"
-              ? dashboardData.completedSessions
-              : Array.isArray(dashboardData?.completedSessions)
-              ? dashboardData.completedSessions.length
-              : 0}
+            {dashboardData?.completedSessions.length || 0}
           </div>
           <div className="text-sm text-gray-600">Completed Sessions</div>
           <div className="flex items-center mt-1">
@@ -376,8 +353,7 @@ const TutorDashboard: React.FC = () => {
               <Calendar className="h-5 w-5 text-gray-400" />
               <span className="text-sm text-gray-500">
                 Next:{" "}
-                {Array.isArray(dashboardData?.upcomingSessions) &&
-                dashboardData.upcomingSessions.length
+                {dashboardData?.upcomingSessions.length
                   ? new Date(
                       dashboardData.upcomingSessions[0]?.startAt
                     ).toLocaleDateString()
@@ -386,89 +362,75 @@ const TutorDashboard: React.FC = () => {
             </div>
           </div>
           <div className="space-y-3">
-            {Array.isArray(dashboardData?.upcomingSessions) &&
-              dashboardData.upcomingSessions.slice(0, 4).map((session: any) => (
-                <div
-                  key={session.id}
-                  className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {getStudentName(session)}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {getSubjectName(session.subjectId || "")}
-                        </div>
-                      </div>
+            {dashboardData?.upcomingSessions.slice(0, 4).map((session) => (
+              <div
+                key={session.id}
+                className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-600" />
                     </div>
-                    <div className="flex space-x-2">
-                      <button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center space-x-1">
-                        <Video className="h-3 w-3" />
-                        <span>Join</span>
-                      </button>
-                      {session.status === "booked" && (
-                        <>
-                          <button
-                            onClick={() => setShowNotesForm(session.id)}
-                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center space-x-1"
-                          >
-                            <CheckCircle className="h-3 w-3" />
-                            <span>Complete</span>
-                          </button>
-                          <button
-                            onClick={() => handleCancelSession(session.id)}
-                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center space-x-1"
-                          >
-                            <XCircle className="h-3 w-3" />
-                            <span>Cancel</span>
-                          </button>
-                        </>
-                      )}
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {getStudentName(session.studentId)}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {getSubjectName(session.subjectId || "")}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                      <Calendar className="h-4 w-4 inline mr-1" />
-                      {new Date(session.startAt).toLocaleDateString()} at{" "}
-                      {new Date(session.startAt).toLocaleTimeString()} -{" "}
-                      {new Date(session.endAt).toLocaleTimeString()}
-                    </div>
-                    {session.price && (
-                      <div className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
-                        ${session.price}
-                      </div>
+                  <div className="flex space-x-2">
+                    <button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 flex items-center space-x-1">
+                      <Video className="h-3 w-3" />
+                      <span>Join</span>
+                    </button>
+                    {session.status === "booked" && (
+                      <>
+                        <button
+                          onClick={() => setShowNotesForm(session.id)}
+                          className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 flex items-center space-x-1"
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          <span>Complete</span>
+                        </button>
+                        <button
+                          onClick={() => handleCancelSession(session.id)}
+                          className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center space-x-1"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          <span>Cancel</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
-              ))}
-            {(!Array.isArray(dashboardData?.upcomingSessions) ||
-              !dashboardData.upcomingSessions.length) && (
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    <Calendar className="h-4 w-4 inline mr-1" />
+                    {new Date(session.startAt).toLocaleDateString()} at{" "}
+                    {new Date(session.startAt).toLocaleTimeString()} -{" "}
+                    {new Date(session.endAt).toLocaleTimeString()}
+                  </div>
+                  {session.price && (
+                    <div className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                      ${session.price}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {!dashboardData?.upcomingSessions.length && (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm mb-2">
                   No upcoming sessions
                 </p>
-                <button
-                  onClick={() => navigate("/tutor/students")}
-                  className="btn-primary text-sm"
-                >
-                  Browse Students
-                </button>
+                <button className="btn-primary text-sm">Browse Students</button>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Conversations / Chat */}
-        <div className="space-y-6">
-          <ChatWidget />
-
-          {/* Recent reviews / other quick items could go here */}
         </div>
 
         {/* Recent Reviews */}
@@ -488,11 +450,8 @@ const TutorDashboard: React.FC = () => {
             </div>
           </div>
           <div className="space-y-3">
-            {reviews?.slice(0, 3).map((review: any) => {
-              const studentName =
-                review.studentFirstName && review.studentLastName
-                  ? `${review.studentFirstName} ${review.studentLastName}`
-                  : `Student ${review.studentId?.slice(-4) || ""}`;
+            {reviews?.slice(0, 3).map((review) => {
+              const student = getUserById(review.studentId);
               return (
                 <div
                   key={review.id}
@@ -505,7 +464,9 @@ const TutorDashboard: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-medium text-gray-900 text-sm">
-                          {studentName}
+                          {student
+                            ? `${student.firstName} ${student.lastName}`
+                            : "Student"}
                         </div>
                         <div className="flex items-center space-x-1">
                           {[...Array(5)].map((_, i) => (
@@ -546,10 +507,7 @@ const TutorDashboard: React.FC = () => {
               </div>
             )}
             {reviews && reviews.length > 3 && (
-              <button
-                onClick={() => navigate("/tutor/reviews")}
-                className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2"
-              >
+              <button className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2">
                 View all {reviews.length} reviews
               </button>
             )}
@@ -573,32 +531,30 @@ const TutorDashboard: React.FC = () => {
             </div>
           </div>
           <div className="space-y-2">
-            {Array.isArray(dashboardData?.availability) &&
-              dashboardData.availability.slice(0, 5).map((slot: any) => (
-                <div
-                  key={slot.id}
-                  className="flex items-center justify-between p-3 rounded border border-gray-200 bg-gray-50"
-                >
-                  <div className="text-sm font-medium text-gray-900 capitalize">
-                    {slot.dayOfWeek}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {slot.startTime} - {slot.endTime}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className={`w-2 h-2 rounded-full ${
-                        slot.isActive ? "bg-green-500" : "bg-red-500"
-                      }`}
-                    ></div>
-                    <span className="text-xs text-gray-500">
-                      {slot.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
+            {dashboardData?.availability.slice(0, 5).map((slot) => (
+              <div
+                key={slot.id}
+                className="flex items-center justify-between p-3 rounded border border-gray-200 bg-gray-50"
+              >
+                <div className="text-sm font-medium text-gray-900 capitalize">
+                  {slot.dayOfWeek}
                 </div>
-              ))}
-            {(!Array.isArray(dashboardData?.availability) ||
-              !dashboardData.availability.length) && (
+                <div className="text-sm text-gray-600">
+                  {slot.startTime} - {slot.endTime}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      slot.isActive ? "bg-green-500" : "bg-red-500"
+                    }`}
+                  ></div>
+                  <span className="text-xs text-gray-500">
+                    {slot.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {!dashboardData?.availability.length && (
               <div className="text-center py-8">
                 <Clock className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm mb-2">
@@ -612,12 +568,11 @@ const TutorDashboard: React.FC = () => {
                 </button>
               </div>
             )}
-            {Array.isArray(dashboardData?.availability) &&
-              dashboardData.availability.length > 5 && (
-                <button className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2">
-                  View full schedule
-                </button>
-              )}
+            {dashboardData?.availability.length > 5 && (
+              <button className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2">
+                View full schedule
+              </button>
+            )}
           </div>
         </div>
 
@@ -640,7 +595,9 @@ const TutorDashboard: React.FC = () => {
                 (m) => m.userId !== user!.id
               );
               const otherMember =
-                otherMembers.length > 0 ? otherMembers[0] : null;
+                otherMembers.length > 0
+                  ? getUserById(otherMembers[0].userId)
+                  : null;
 
               return (
                 <div
@@ -655,10 +612,7 @@ const TutorDashboard: React.FC = () => {
                       <div>
                         <div className="font-medium text-gray-900 text-sm">
                           {otherMember
-                            ? `${otherMember.firstName || ""} ${
-                                otherMember.lastName || ""
-                              }`.trim() ||
-                              `User ${otherMember.userId?.slice(-4) || ""}`
+                            ? `${otherMember.firstName} ${otherMember.lastName}`
                             : "Unknown User"}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -682,19 +636,11 @@ const TutorDashboard: React.FC = () => {
               <div className="text-center py-8">
                 <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm mb-2">No messages yet</p>
-                <button
-                  onClick={() => navigate("/messages")}
-                  className="btn-primary text-sm"
-                >
-                  Start Messaging
-                </button>
+                <button className="btn-primary text-sm">Start Messaging</button>
               </div>
             )}
             {conversations && conversations.length > 3 && (
-              <button
-                onClick={() => navigate("/messages")}
-                className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2"
-              >
+              <button className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium py-2">
                 View all conversations
               </button>
             )}
@@ -966,11 +912,7 @@ const TutorDashboard: React.FC = () => {
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
               <div className="text-center">
                 <div className="text-lg font-bold text-gray-900">
-                  {Array.isArray(dashboardData?.upcomingSessions)
-                    ? dashboardData.upcomingSessions.length
-                    : typeof dashboardData?.upcomingSessions === "number"
-                    ? dashboardData.upcomingSessions
-                    : 0}
+                  {dashboardData?.upcomingSessions.length || 0}
                 </div>
                 <div className="text-xs text-gray-600">Upcoming</div>
               </div>

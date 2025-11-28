@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { sessionsApi, subjectsApi } from "../services/api";
+import { sessionsApi, subjectsApi } from "../services/mockApi";
 import type { Session, Subject } from "../types";
 
 const TutorSchedule: React.FC = () => {

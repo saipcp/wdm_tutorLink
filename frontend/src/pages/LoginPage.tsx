@@ -22,39 +22,14 @@ const LoginPage: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { login, loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!formData.email.trim()) {
-      errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = "Please enter a valid email address";
-    }
-    
-    if (!formData.password) {
-      errors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
-    }
-    
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setFieldErrors({});
-
-    if (!validateForm()) {
-      return;
-    }
 
     try {
       await login(formData.email, formData.password);
@@ -124,14 +99,11 @@ const LoginPage: React.FC = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className={`input-field mt-1 ${fieldErrors.email ? 'border-red-500' : ''}`}
+                className="input-field mt-1"
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
               />
-              {fieldErrors.email && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>
-              )}
             </div>
             <div>
               <label
@@ -147,14 +119,11 @@ const LoginPage: React.FC = () => {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  className={`input-field pr-10 ${fieldErrors.password ? 'border-red-500' : ''}`}
+                  className="input-field pr-10"
                   placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
                 />
-              {fieldErrors.password && (
-                <p className="mt-1 text-sm text-red-600">{fieldErrors.password}</p>
-              )}
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"

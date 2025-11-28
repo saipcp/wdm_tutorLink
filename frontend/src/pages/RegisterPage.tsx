@@ -31,7 +31,6 @@ const RegisterPage: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const { register, loading, user } = useAuth();
   const navigate = useNavigate();
@@ -40,67 +39,23 @@ const RegisterPage: React.FC = () => {
   // Get the intended destination from location state, fallback to role-based dashboard
   const from = (location.state as any)?.from;
 
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    // First name validation
-    if (!formData.firstName.trim()) {
-      errors.firstName = "First name is required";
-    } else if (formData.firstName.trim().length < 2) {
-      errors.firstName = "First name must be at least 2 characters";
-    } else if (!/^[a-zA-Z\s\-'\.]+$/.test(formData.firstName)) {
-      errors.firstName =
-        "First name can only contain letters, spaces, hyphens, apostrophes, and periods";
-    }
-
-    // Last name validation
-    if (!formData.lastName.trim()) {
-      errors.lastName = "Last name is required";
-    } else if (formData.lastName.trim().length < 2) {
-      errors.lastName = "Last name must be at least 2 characters";
-    } else if (!/^[a-zA-Z\s\-'\.]+$/.test(formData.lastName)) {
-      errors.lastName =
-        "Last name can only contain letters, spaces, hyphens, apostrophes, and periods";
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = "Please enter a valid email address";
-    }
-
-    // Phone validation (optional)
-    if (formData.phone && !/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
-      errors.phone = "Please enter a valid phone number";
-    }
-
-    // Password validation
-    if (!formData.password) {
-      errors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      errors.password = "Password must be at least 6 characters long";
-    } else if (formData.password.length > 128) {
-      errors.password = "Password must be less than 128 characters";
-    }
-
-    // Confirm password validation
-    if (!formData.confirmPassword) {
-      errors.confirmPassword = "Please confirm your password";
-    } else if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = "Passwords do not match";
-    }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setFieldErrors({});
 
-    if (!validateForm()) {
+    // Validation
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      setError("First name and last name are required");
       return;
     }
 
@@ -202,18 +157,11 @@ const RegisterPage: React.FC = () => {
                     name="firstName"
                     type="text"
                     required
-                    className={`input-field pl-12 ${
-                      fieldErrors.firstName ? "border-red-500" : ""
-                    }`}
+                    className="input-field pl-12"
                     placeholder="First name"
                     value={formData.firstName}
                     onChange={handleChange}
                   />
-                  {fieldErrors.firstName && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {fieldErrors.firstName}
-                    </p>
-                  )}
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-4 w-4 text-secondary-400" />
                   </div>
@@ -232,18 +180,11 @@ const RegisterPage: React.FC = () => {
                     name="lastName"
                     type="text"
                     required
-                    className={`input-field pl-12 ${
-                      fieldErrors.lastName ? "border-red-500" : ""
-                    }`}
+                    className="input-field pl-12"
                     placeholder="Last name"
                     value={formData.lastName}
                     onChange={handleChange}
                   />
-                  {fieldErrors.lastName && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {fieldErrors.lastName}
-                    </p>
-                  )}
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <User className="h-4 w-4 text-secondary-400" />
                   </div>
@@ -266,18 +207,11 @@ const RegisterPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`input-field pl-12 ${
-                    fieldErrors.email ? "border-red-500" : ""
-                  }`}
+                  className="input-field pl-12"
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
                 />
-                {fieldErrors.email && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {fieldErrors.email}
-                  </p>
-                )}
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-4 w-4 text-secondary-400" />
                 </div>
@@ -297,18 +231,11 @@ const RegisterPage: React.FC = () => {
                   id="phone"
                   name="phone"
                   type="tel"
-                  className={`input-field pl-12 ${
-                    fieldErrors.phone ? "border-red-500" : ""
-                  }`}
+                  className="input-field pl-12"
                   placeholder="Enter your phone number"
                   value={formData.phone}
                   onChange={handleChange}
                 />
-                {fieldErrors.phone && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {fieldErrors.phone}
-                  </p>
-                )}
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Phone className="h-4 w-4 text-secondary-400" />
                 </div>
@@ -330,9 +257,7 @@ const RegisterPage: React.FC = () => {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  className={`input-field pl-10 pr-10 ${
-                    fieldErrors.password ? "border-red-500" : ""
-                  }`}
+                  className="input-field pl-10 pr-10"
                   placeholder="Create a password"
                   value={formData.password}
                   onChange={handleChange}
@@ -352,15 +277,9 @@ const RegisterPage: React.FC = () => {
                   )}
                 </button>
               </div>
-              {fieldErrors.password ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {fieldErrors.password}
-                </p>
-              ) : (
-                <p className="mt-1 text-xs text-secondary-500">
-                  Must be at least 6 characters long
-                </p>
-              )}
+              <p className="mt-1 text-xs text-secondary-500">
+                Must be at least 6 characters long
+              </p>
             </div>
 
             {/* Confirm Password */}
@@ -378,18 +297,11 @@ const RegisterPage: React.FC = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  className={`input-field pl-10 pr-10 ${
-                    fieldErrors.confirmPassword ? "border-red-500" : ""
-                  }`}
+                  className="input-field pl-10 pr-10"
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />
-                {fieldErrors.confirmPassword && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {fieldErrors.confirmPassword}
-                  </p>
-                )}
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-4 w-4 text-secondary-400" />
                 </div>

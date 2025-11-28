@@ -13,7 +13,7 @@ import {
   Volume2,
   MousePointer,
 } from "lucide-react";
-import { aiApi } from "../../services/api";
+import { aiApi } from "../../services/mockApi";
 
 interface AccessibilityIssue {
   type: "error" | "warning" | "info";

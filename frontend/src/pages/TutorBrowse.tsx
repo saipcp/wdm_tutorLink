@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { tutorsApi, subjectsApi, sessionsApi } from "../services/api";
+import { tutorsApi, subjectsApi, sessionsApi } from "../services/mockApi";
 import type {
   TutorProfile,
   Subject,
@@ -78,11 +78,6 @@ const TutorBrowse: React.FC = () => {
   const filteredTutors =
     tutors
       ?.filter((tutor) => {
-        // Ensure subjects is always an array
-        const tutorSubjects = Array.isArray(tutor.subjects)
-          ? tutor.subjects
-          : [];
-
         // Search filter
         const matchesSearch =
           searchTerm === "" ||
@@ -92,7 +87,7 @@ const TutorBrowse: React.FC = () => {
           (tutor.user?.lastName || "")
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          tutorSubjects.some((subject) =>
+          tutor.subjects.some((subject) =>
             subject.toLowerCase().includes(searchTerm.toLowerCase())
           ) ||
           tutor.bio?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -101,7 +96,7 @@ const TutorBrowse: React.FC = () => {
         const matchesSubjects =
           selectedSubjects.length === 0 ||
           selectedSubjects.some((selectedSubject) =>
-            tutorSubjects.some(
+            tutor.subjects.some(
               (tutorSubject) =>
                 tutorSubject.toLowerCase() === selectedSubject.toLowerCase()
             )
@@ -114,7 +109,7 @@ const TutorBrowse: React.FC = () => {
             tutor.hourlyRate <= priceRange[1]);
 
         // Rating filter
-        const matchesRating = (tutor.rating || 0) >= minRating;
+        const matchesRating = tutor.rating >= minRating;
 
         return (
           matchesSearch && matchesSubjects && matchesPrice && matchesRating
@@ -123,11 +118,11 @@ const TutorBrowse: React.FC = () => {
       .sort((a, b) => {
         switch (sortBy) {
           case "rating":
-            return (b.rating || 0) - (a.rating || 0);
+            return b.rating - a.rating;
           case "price":
             return (a.hourlyRate || 0) - (b.hourlyRate || 0);
           case "experience":
-            return (b.experience || 0) - (a.experience || 0);
+            return b.experience - a.experience;
           default:
             return 0;
         }
@@ -539,57 +534,51 @@ const TutorBrowse: React.FC = () => {
                 )}
 
                 {/* Subjects */}
-                {tutor.subjects &&
-                  Array.isArray(tutor.subjects) &&
-                  tutor.subjects.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center space-x-1 mb-2">
-                        <BookOpen className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700">
-                          Subjects
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {tutor.subjects.slice(0, 3).map((subject, index) => (
-                          <span
-                            key={index}
-                            className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded"
-                          >
-                            {subject}
-                          </span>
-                        ))}
-                        {tutor.subjects.length > 3 && (
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                            +{tutor.subjects.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                <div className="mb-4">
+                  <div className="flex items-center space-x-1 mb-2">
+                    <BookOpen className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700">
+                      Subjects
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {tutor.subjects.slice(0, 3).map((subject, index) => (
+                      <span
+                        key={index}
+                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded"
+                      >
+                        {subject}
+                      </span>
+                    ))}
+                    {tutor.subjects.length > 3 && (
+                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                        +{tutor.subjects.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 {/* Languages */}
-                {tutor.languages &&
-                  Array.isArray(tutor.languages) &&
-                  tutor.languages.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center space-x-1 mb-2">
-                        <MessageSquare className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-700">
-                          Languages
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {tutor.languages.map((language, index) => (
-                          <span
-                            key={index}
-                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded"
-                          >
-                            {language}
-                          </span>
-                        ))}
-                      </div>
+                {tutor.languages.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center space-x-1 mb-2">
+                      <MessageSquare className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700">
+                        Languages
+                      </span>
                     </div>
-                  )}
+                    <div className="flex flex-wrap gap-1">
+                      {tutor.languages.map((language, index) => (
+                        <span
+                          key={index}
+                          className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded"
+                        >
+                          {language}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Availability Preview */}
                 <div className="mb-4">
@@ -600,10 +589,7 @@ const TutorBrowse: React.FC = () => {
                     </span>
                   </div>
                   <div className="text-xs text-gray-600">
-                    {tutor.availability && Array.isArray(tutor.availability)
-                      ? tutor.availability.filter((slot) => slot.isActive)
-                          .length
-                      : 0}{" "}
+                    {tutor.availability.filter((slot) => slot.isActive).length}{" "}
                     time slots this week
                   </div>
                 </div>

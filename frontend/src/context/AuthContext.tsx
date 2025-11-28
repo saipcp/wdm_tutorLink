@@ -7,8 +7,7 @@ import React, {
 } from "react";
 import { Navigate } from "react-router-dom";
 import { User, AuthState } from "../types";
-import { authApi, usersApi } from "../services/api";
-import UnauthorizedPage from "../pages/UnauthorizedPage";
+import { authApi, usersApi } from "../services/mockApi";
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -42,29 +41,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check if user is already logged in
+        // Check if user is already logged in (e.g., from localStorage in real app)
         const savedUser = localStorage.getItem("tutorlink_user");
         if (savedUser) {
-          const userData = JSON.parse(savedUser);
-          // Verify token is still valid by fetching current user
-          try {
-            const currentUser = await usersApi.getCurrentUser();
-            setAuthState({
-              user: currentUser,
-              isAuthenticated: true,
-              loading: false,
-            });
-            // Update stored user data
-            localStorage.setItem("tutorlink_user", JSON.stringify({ ...currentUser, token: userData.token }));
-          } catch (error) {
-            // Token invalid, clear storage
-            localStorage.removeItem("tutorlink_user");
-            setAuthState({
-              user: null,
-              isAuthenticated: false,
-              loading: false,
-            });
-          }
+          const user = JSON.parse(savedUser);
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            loading: false,
+          });
         } else {
           setAuthState({
             user: null,
@@ -91,9 +76,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const result = await authApi.login(email, password);
 
-      // Save user and token to localStorage
-      const userData = { ...result.user, token: (result as any).token };
-      localStorage.setItem("tutorlink_user", JSON.stringify(userData));
+      // Save to localStorage (in real app, use secure storage)
+      localStorage.setItem("tutorlink_user", JSON.stringify(result.user));
 
       setAuthState({
         user: result.user,
@@ -140,15 +124,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setAuthState((prev) => ({ ...prev, loading: true }));
 
-      const response = await authApi.register(userData);
-      // API returns { user, token }
-      const userDataWithToken = { ...response.user, token: (response as any).token };
-      
+      const newUser = await authApi.register({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        role: userData.role,
+      });
+
       // Save to localStorage
-      localStorage.setItem("tutorlink_user", JSON.stringify(userDataWithToken));
+      localStorage.setItem("tutorlink_user", JSON.stringify(newUser));
 
       setAuthState({
-        user: response.user,
+        user: newUser,
         isAuthenticated: true,
         loading: false,
       });
@@ -274,22 +261,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (!isAuthenticated || !user) {
-    // Show 403 page for unauthenticated users
-    return (
-      <UnauthorizedPage
-        reason="not_authenticated"
-        requiredRoles={allowedRoles}
-      />
-    );
+    return <>{fallback}</>;
   }
 
   if (!allowedRoles.includes(user.role)) {
-    // Show 403 page for users without required role
     return (
-      <UnauthorizedPage
-        reason="insufficient_permissions"
-        requiredRoles={allowedRoles}
-      />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-secondary-900 mb-4">
+            Access Denied
+          </h1>
+          <p className="text-secondary-600 mb-4">
+            You don't have permission to access this page.
+          </p>
+          <p className="text-sm text-secondary-500">
+            Required role: {allowedRoles.join(" or ")}
+          </p>
+        </div>
+      </div>
     );
   }
 

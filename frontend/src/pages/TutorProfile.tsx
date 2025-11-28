@@ -20,16 +20,13 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useSocket } from "../context/SocketContext";
-import { tutorsApi, reviewsApi, sessionsApi } from "../services/api";
-import ChatModal from "../components/Chat/ChatModal";
+import { tutorsApi, reviewsApi, sessionsApi } from "../services/mockApi";
 import type { TutorProfile, Review, Session } from "../types";
 
 const TutorProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { onlineUsers } = useSocket();
 
   // Fetch tutor data
   const {
@@ -97,12 +94,9 @@ const TutorProfile: React.FC = () => {
     if (!user) {
       navigate("/login", { state: { from: `/messages` } });
     } else {
-      // Open inline chat modal targeting this tutor
-      setOpenChat(true);
+      navigate("/messages");
     }
   };
-
-  const [openChat, setOpenChat] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -199,23 +193,9 @@ const TutorProfile: React.FC = () => {
           <div className="flex-grow text-center lg:text-left">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
-                    {tutor.user.firstName} {tutor.user.lastName}
-                  </h1>
-                  <div
-                    className={`w-3 h-3 rounded-full ${
-                      onlineUsers && onlineUsers[tutor.user.id]
-                        ? "bg-green-500"
-                        : "bg-gray-300"
-                    }`}
-                    title={
-                      onlineUsers && onlineUsers[tutor.user.id]
-                        ? "Online"
-                        : "Offline"
-                    }
-                  />
-                </div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
+                  {tutor.user.firstName} {tutor.user.lastName}
+                </h1>
                 <p className="text-gray-600 mb-2">
                   {tutor.subjects.join(", ")} Tutor
                 </p>
@@ -292,14 +272,6 @@ const TutorProfile: React.FC = () => {
           <span>Send Message</span>
         </button>
       </div>
-
-      {/* Inline chat modal for starting / continuing conversation with this tutor */}
-      <ChatModal
-        open={openChat}
-        conversationId={undefined}
-        recipientId={tutor.user.id}
-        onClose={() => setOpenChat(false)}
-      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}

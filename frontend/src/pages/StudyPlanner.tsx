@@ -23,7 +23,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { plansApi, tasksApi, subjectsApi, aiApi } from "../services/api";
+import { plansApi, tasksApi, subjectsApi, aiApi } from "../services/mockApi";
 import type { Plan, PlanItem, Task, Subject } from "../types";
 
 const StudyPlanner: React.FC = () => {
@@ -58,9 +58,8 @@ const StudyPlanner: React.FC = () => {
       goals: string[];
       currentLevel: string;
     }) => aiApi.generateStudyPlan(request),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["plans", user?.id] });
-      await queryClient.refetchQueries({ queryKey: ["plans", user?.id] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans", user?.id] });
     },
   });
 
@@ -98,46 +97,9 @@ const StudyPlanner: React.FC = () => {
     currentLevel: "beginner",
   });
 
-  const [planFormErrors, setPlanFormErrors] = useState<Record<string, string>>(
-    {}
-  );
-  const [activeSession, setActiveSession] = useState<{
-    itemId: string;
-    startTime: Date;
-  } | null>(null);
-
-  const validatePlanForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (!newPlan.subjects.length) {
-      errors.subjects = "Please select at least one subject";
-    }
-
-    if (newPlan.duration < 1 || newPlan.duration > 365) {
-      errors.duration = "Duration must be between 1 and 365 days";
-    }
-
-    if (newPlan.dailyHours < 0.5 || newPlan.dailyHours > 12) {
-      errors.dailyHours = "Daily hours must be between 0.5 and 12";
-    }
-
-    if (!newPlan.currentLevel) {
-      errors.currentLevel = "Please select your current level";
-    }
-
-    setPlanFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleGeneratePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPlanFormErrors({});
-
-    if (!validatePlanForm()) {
-      return;
-    }
-
-    if (!user?.id) return;
+    if (!user?.id || !newPlan.subjects.length) return;
 
     await generatePlanMutation.mutateAsync({
       subjects: newPlan.subjects,
@@ -170,21 +132,6 @@ const StudyPlanner: React.FC = () => {
   const handleDeletePlan = async (planId: string) => {
     if (confirm("Are you sure you want to delete this study plan?")) {
       await deletePlanMutation.mutateAsync(planId);
-    }
-  };
-
-  const handleStartSession = (itemId: string, itemTitle: string) => {
-    if (activeSession?.itemId === itemId) {
-      // Stop the current session
-      setActiveSession(null);
-    } else {
-      // Start a new session
-      setActiveSession({
-        itemId,
-        startTime: new Date(),
-      });
-      // Show notification
-      alert(`Started study session: ${itemTitle}`);
     }
   };
 
@@ -320,7 +267,7 @@ const StudyPlanner: React.FC = () => {
           <div className="text-2xl font-bold text-gray-900">
             {plans?.reduce(
               (acc, plan) =>
-                acc + plan.items.filter((item: any) => item.completed).length,
+                acc + plan.items.filter((item) => item.completed).length,
               0
             ) || 0}
           </div>
@@ -449,7 +396,7 @@ const StudyPlanner: React.FC = () => {
                     Study Items
                   </h4>
                   <div className="space-y-1">
-                    {plan.items.slice(0, 3).map((item: any) => (
+                    {plan.items.slice(0, 3).map((item, index) => (
                       <div
                         key={item.id}
                         className="flex items-center space-x-2 text-sm"
@@ -526,21 +473,16 @@ const StudyPlanner: React.FC = () => {
                 <select
                   multiple
                   value={newPlan.subjects}
-                  onChange={(e) => {
+                  onChange={(e) =>
                     setNewPlan({
                       ...newPlan,
                       subjects: Array.from(
                         e.target.selectedOptions,
                         (option) => option.value
                       ),
-                    });
-                    if (planFormErrors.subjects) {
-                      setPlanFormErrors({ ...planFormErrors, subjects: "" });
-                    }
-                  }}
-                  className={`input-field h-32 ${
-                    planFormErrors.subjects ? "border-red-500" : ""
-                  }`}
+                    })
+                  }
+                  className="input-field h-32"
                   required
                 >
                   {subjects?.map((subject) => (
@@ -552,11 +494,6 @@ const StudyPlanner: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">
                   Hold Ctrl/Cmd to select multiple subjects
                 </p>
-                {planFormErrors.subjects && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {planFormErrors.subjects}
-                  </p>
-                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -567,25 +504,17 @@ const StudyPlanner: React.FC = () => {
                   <input
                     type="number"
                     value={newPlan.duration}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 7;
-                      setNewPlan({ ...newPlan, duration: value });
-                      if (planFormErrors.duration) {
-                        setPlanFormErrors({ ...planFormErrors, duration: "" });
-                      }
-                    }}
-                    className={`input-field ${
-                      planFormErrors.duration ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) =>
+                      setNewPlan({
+                        ...newPlan,
+                        duration: parseInt(e.target.value) || 7,
+                      })
+                    }
+                    className="input-field"
                     min="1"
-                    max="365"
+                    max="30"
                     required
                   />
-                  {planFormErrors.duration && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {planFormErrors.duration}
-                    </p>
-                  )}
                 </div>
 
                 <div>
@@ -595,29 +524,18 @@ const StudyPlanner: React.FC = () => {
                   <input
                     type="number"
                     value={newPlan.dailyHours}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value) || 2;
-                      setNewPlan({ ...newPlan, dailyHours: value });
-                      if (planFormErrors.dailyHours) {
-                        setPlanFormErrors({
-                          ...planFormErrors,
-                          dailyHours: "",
-                        });
-                      }
-                    }}
-                    className={`input-field ${
-                      planFormErrors.dailyHours ? "border-red-500" : ""
-                    }`}
+                    onChange={(e) =>
+                      setNewPlan({
+                        ...newPlan,
+                        dailyHours: parseInt(e.target.value) || 2,
+                      })
+                    }
+                    className="input-field"
                     min="0.5"
-                    max="12"
+                    max="8"
                     step="0.5"
                     required
                   />
-                  {planFormErrors.dailyHours && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {planFormErrors.dailyHours}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -627,19 +545,10 @@ const StudyPlanner: React.FC = () => {
                 </label>
                 <select
                   value={newPlan.currentLevel}
-                  onChange={(e) => {
-                    setNewPlan({ ...newPlan, currentLevel: e.target.value });
-                    if (planFormErrors.currentLevel) {
-                      setPlanFormErrors({
-                        ...planFormErrors,
-                        currentLevel: "",
-                      });
-                    }
-                  }}
-                  className={`input-field ${
-                    planFormErrors.currentLevel ? "border-red-500" : ""
-                  }`}
-                  required
+                  onChange={(e) =>
+                    setNewPlan({ ...newPlan, currentLevel: e.target.value })
+                  }
+                  className="input-field"
                 >
                   <option value="beginner">
                     Beginner (Extended theory sessions)
@@ -651,11 +560,6 @@ const StudyPlanner: React.FC = () => {
                     Advanced (Focused practice & review)
                   </option>
                 </select>
-                {planFormErrors.currentLevel && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {planFormErrors.currentLevel}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -913,24 +817,8 @@ const StudyPlanner: React.FC = () => {
                     </div>
 
                     <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleStartSession(item.id, item.title)}
-                        className={`p-2 rounded transition-colors ${
-                          activeSession?.itemId === item.id
-                            ? "text-red-600 bg-red-50 hover:bg-red-100"
-                            : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                        }`}
-                        title={
-                          activeSession?.itemId === item.id
-                            ? "Stop study session"
-                            : "Start study session"
-                        }
-                      >
-                        {activeSession?.itemId === item.id ? (
-                          <Pause className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4" />
-                        )}
+                      <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                        <Play className="h-4 w-4" />
                       </button>
                     </div>
                   </div>

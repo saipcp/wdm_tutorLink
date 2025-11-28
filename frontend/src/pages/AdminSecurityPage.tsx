@@ -1,8 +1,8 @@
 import React from "react";
-import { Brain } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const AdminAIPage: React.FC = () => {
+const AdminSecurityPage: React.FC = () => {
   const { user } = useAuth();
 
   if (!user) return null;
@@ -12,51 +12,65 @@ const AdminAIPage: React.FC = () => {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI Settings</h1>
-          <p className="text-gray-600">Configure AI settings and features</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Security Settings
+          </h1>
+          <p className="text-gray-600">Manage platform security policies</p>
         </div>
       </div>
 
-      {/* AI Settings Section */}
+      {/* Security Section */}
       <div className="space-y-6">
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">AI Settings</h3>
-            <Brain className="h-5 w-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              Security Settings
+            </h3>
+            <Shield className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-4">
             <div className="p-4 rounded-lg border border-gray-200">
               <h4 className="font-medium text-gray-900 mb-2">
-                TutorBot Configuration
+                User Verification
               </h4>
               <p className="text-sm text-gray-600 mb-3">
-                Configure AI assistant settings and behavior
+                Manage user verification processes and requirements
               </p>
               <button className="btn-secondary text-sm">
-                Configure TutorBot
+                Configure Verification
               </button>
             </div>
 
             <div className="p-4 rounded-lg border border-gray-200">
               <h4 className="font-medium text-gray-900 mb-2">
-                Study Plan Generation
+                Session Security
               </h4>
               <p className="text-sm text-gray-600 mb-3">
-                Adjust AI algorithms for personalized study plan creation
+                Configure session security and privacy settings
               </p>
               <button className="btn-secondary text-sm">
-                Configure AI Plans
+                Configure Session Security
               </button>
             </div>
 
             <div className="p-4 rounded-lg border border-gray-200">
-              <h4 className="font-medium text-gray-900 mb-2">Smart Matching</h4>
+              <h4 className="font-medium text-gray-900 mb-2">
+                Data Protection
+              </h4>
               <p className="text-sm text-gray-600 mb-3">
-                Fine-tune tutor-student matching algorithms
+                Manage data encryption and privacy protection settings
               </p>
               <button className="btn-secondary text-sm">
-                Configure Matching
+                Configure Data Protection
               </button>
+            </div>
+
+            <div className="p-4 rounded-lg border border-gray-200">
+              <h4 className="font-medium text-gray-900 mb-2">Audit Logs</h4>
+              <p className="text-sm text-gray-600 mb-3">
+                Review system activity and security events
+              </p>
+              <button className="btn-secondary text-sm">View Audit Logs</button>
             </div>
           </div>
         </div>
@@ -65,4 +79,4 @@ const AdminAIPage: React.FC = () => {
   );
 };
 
-export default AdminAIPage;
+export default AdminSecurityPage;

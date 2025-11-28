@@ -10,7 +10,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { aiApi } from "../services/api";
+import { aiApi } from "../services/mockApi";
 import type { Message } from "../types";
 
 interface ChatMessage extends Message {

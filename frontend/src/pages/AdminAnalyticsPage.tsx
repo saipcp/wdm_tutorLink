@@ -7,7 +7,7 @@ import {
   subjectsApi,
   sessionsApi,
   reviewsApi,
-} from "../services/api";
+} from "../services/mockApi";
 import type { User as UserType, Subject, Session } from "../types";
 
 const AdminAnalyticsPage: React.FC = () => {

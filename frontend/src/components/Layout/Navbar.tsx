@@ -12,8 +12,6 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { notificationsApi } from "../../services/api";
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,32 +19,6 @@ const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const notificationsQuery = useQuery({
-    queryKey: ["notifications", user?.id],
-    queryFn: () =>
-      user?.id
-        ? notificationsApi.getNotifications(user.id)
-        : Promise.resolve([]),
-    enabled: !!user?.id,
-    refetchInterval: 10000,
-  });
-
-  const queryClient = useQueryClient();
-
-  const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => notificationsApi.markAsRead(id),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
-  });
-
-  const markAllMutation = useMutation({
-    mutationFn: () => notificationsApi.markAllAsRead(user?.id || ""),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications", user?.id] }),
-  });
-
-  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -108,111 +80,10 @@ const Navbar: React.FC = () => {
             {isAuthenticated ? (
               <>
                 {/* Notifications */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowNotifications(!showNotifications)}
-                    className="p-2 text-secondary-600 hover:text-secondary-900 relative"
-                    aria-label="Notifications"
-                  >
-                    <Bell className="h-5 w-5" />
-                    {/** unread count */}
-                    {notificationsQuery.data &&
-                      notificationsQuery.data.filter((n: any) => !n.isRead)
-                        .length > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 text-[11px] bg-red-500 text-white rounded-full flex items-center justify-center">
-                          {
-                            notificationsQuery.data.filter(
-                              (n: any) => !n.isRead
-                            ).length
-                          }
-                        </span>
-                      )}
-                  </button>
-
-                  {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-secondary-200 z-50">
-                      <div className="flex items-center justify-between px-3 py-2 border-b border-secondary-100">
-                        <div className="font-medium text-sm">Notifications</div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => markAllMutation.mutate()}
-                            className="text-xs text-secondary-500 hover:underline"
-                          >
-                            Mark all read
-                          </button>
-                          <button
-                            onClick={() => setShowNotifications(false)}
-                            className="text-xs text-secondary-400"
-                          >
-                            Close
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="max-h-64 overflow-auto p-2 space-y-2">
-                        {notificationsQuery.isLoading ? (
-                          <div className="p-3 text-sm text-gray-500">
-                            Loading…
-                          </div>
-                        ) : !notificationsQuery.data ||
-                          notificationsQuery.data.length === 0 ? (
-                          <div className="p-3 text-sm text-gray-500">
-                            No notifications
-                          </div>
-                        ) : (
-                          notificationsQuery.data.slice(0, 6).map((n: any) => (
-                            <div
-                              key={n.id}
-                              className={`p-3 rounded border ${
-                                n.isRead
-                                  ? "bg-white"
-                                  : "bg-blue-50 border-blue-200"
-                              }`}
-                            >
-                              <div className="flex justify-between items-start">
-                                <div className="text-sm text-gray-800">
-                                  <div className="font-medium truncate">
-                                    {n.type}
-                                  </div>
-                                  <div className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">
-                                    {JSON.stringify(n.payload)}
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-xs text-gray-400">
-                                    {new Date(n.createdAt).toLocaleString()}
-                                  </div>
-                                  {!n.isRead && (
-                                    <button
-                                      onClick={() =>
-                                        markAsReadMutation.mutate(n.id)
-                                      }
-                                      className="text-xs mt-2 text-blue-600"
-                                    >
-                                      Mark
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-
-                      <div className="border-t border-secondary-100 p-2 text-center">
-                        <button
-                          onClick={() => {
-                            setShowNotifications(false);
-                            navigate("/notifications");
-                          }}
-                          className="text-sm text-primary-600 hover:underline"
-                        >
-                          View all notifications
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button className="p-2 text-secondary-600 hover:text-secondary-900 relative">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                </button>
 
                 {/* User menu */}
                 <div className="relative">
@@ -373,14 +244,6 @@ const Navbar: React.FC = () => {
         <div
           className="fixed inset-0 z-40"
           onClick={() => setShowUserMenu(false)}
-        />
-      )}
-
-      {/* Backdrop for notifications dropdown */}
-      {showNotifications && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowNotifications(false)}
         />
       )}
     </nav>

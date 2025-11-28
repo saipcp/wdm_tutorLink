@@ -16,7 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { sessionsApi, reviewsApi, tutorsApi } from "../services/api";
+import { sessionsApi, reviewsApi, tutorsApi } from "../services/mockApi";
 import type { Review, Session } from "../types";
 
 const ReviewsPage: React.FC = () => {
@@ -34,9 +34,39 @@ const ReviewsPage: React.FC = () => {
   });
 
   const { data: allReviews } = useQuery({
-    queryKey: ["reviews", user?.id],
-    queryFn: () => reviewsApi.getReviewsForUser(user!.id),
-    enabled: !!user?.id,
+    queryKey: ["reviews"],
+    queryFn: async () => {
+      if (user?.role === "tutor") {
+        // Get reviews for this tutor
+        return await reviewsApi.submitReview("", 1, ""); // This needs to be updated
+      } else {
+        // Get all reviews from sessions
+        const reviews: Review[] = [];
+        if (sessions) {
+          for (const session of sessions.filter(
+            (s) => s.status === "completed"
+          )) {
+            // In a real app, you'd fetch reviews by session ID
+            // For now, we'll use mock data
+            reviews.push({
+              id: `review-${session.id}`,
+              sessionId: session.id,
+              tutorId: session.tutorId,
+              studentId: session.studentId,
+              rating: Math.floor(Math.random() * 5) + 1,
+              comment: `Great session! Learned a lot about ${
+                session.subjectId || "the topic"
+              }.`,
+              createdAt: new Date(
+                Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+              ).toISOString(),
+            });
+          }
+        }
+        return reviews;
+      }
+    },
+    enabled: !!user?.id && !!sessions,
   });
 
   const { data: tutorProfiles } = useQuery({

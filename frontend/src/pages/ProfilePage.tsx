@@ -21,7 +21,7 @@ import {
   studentsApi,
   sessionsApi,
   reviewsApi,
-} from "../services/api";
+} from "../services/mockApi";
 import type { TutorProfile, StudentProfile } from "../types";
 
 const ProfilePage: React.FC = () => {
@@ -38,7 +38,7 @@ const ProfilePage: React.FC = () => {
   // Role-specific profile data
   const { data: tutorProfile } = useQuery({
     queryKey: ["tutorProfile", user?.id],
-    queryFn: () => tutorsApi.getTutorByUserId(user!.id),
+    queryFn: () => tutorsApi.getTutorById(user!.id),
     enabled: !!user?.id && user.role === "tutor",
   });
 
@@ -94,45 +94,8 @@ const ProfilePage: React.FC = () => {
     });
   };
 
-  const [profileFormErrors, setProfileFormErrors] = useState<Record<string, string>>({});
-
-  const validateProfileForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!editForm.firstName.trim()) {
-      errors.firstName = "First name is required";
-    } else if (editForm.firstName.trim().length < 2) {
-      errors.firstName = "First name must be at least 2 characters";
-    }
-    
-    if (!editForm.lastName.trim()) {
-      errors.lastName = "Last name is required";
-    } else if (editForm.lastName.trim().length < 2) {
-      errors.lastName = "Last name must be at least 2 characters";
-    }
-    
-    if (!editForm.email.trim()) {
-      errors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
-      errors.email = "Please enter a valid email address";
-    }
-    
-    if (editForm.phone && !/^[\d\s\-\+\(\)]+$/.test(editForm.phone)) {
-      errors.phone = "Please enter a valid phone number";
-    }
-    
-    setProfileFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileFormErrors({});
-    
-    if (!validateProfileForm()) {
-      return;
-    }
-    
     if (!user) return;
 
     await updateUserMutation.mutateAsync(editForm);
@@ -195,18 +158,12 @@ const ProfilePage: React.FC = () => {
                     <input
                       type="text"
                       value={editForm.firstName}
-                      onChange={(e) => {
-                        handleInputChange("firstName", e.target.value);
-                        if (profileFormErrors.firstName) {
-                          setProfileFormErrors({ ...profileFormErrors, firstName: '' });
-                        }
-                      }}
-                      className={`input-field ${profileFormErrors.firstName ? 'border-red-500' : ''}`}
+                      onChange={(e) =>
+                        handleInputChange("firstName", e.target.value)
+                      }
+                      className="input-field"
                       required
                     />
-                    {profileFormErrors.firstName && (
-                      <p className="mt-1 text-xs text-red-600">{profileFormErrors.firstName}</p>
-                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-secondary-700 mb-1">
@@ -215,18 +172,12 @@ const ProfilePage: React.FC = () => {
                     <input
                       type="text"
                       value={editForm.lastName}
-                      onChange={(e) => {
-                        handleInputChange("lastName", e.target.value);
-                        if (profileFormErrors.lastName) {
-                          setProfileFormErrors({ ...profileFormErrors, lastName: '' });
-                        }
-                      }}
-                      className={`input-field ${profileFormErrors.lastName ? 'border-red-500' : ''}`}
+                      onChange={(e) =>
+                        handleInputChange("lastName", e.target.value)
+                      }
+                      className="input-field"
                       required
                     />
-                    {profileFormErrors.lastName && (
-                      <p className="mt-1 text-xs text-red-600">{profileFormErrors.lastName}</p>
-                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-secondary-700 mb-1">
@@ -235,18 +186,12 @@ const ProfilePage: React.FC = () => {
                     <input
                       type="email"
                       value={editForm.email}
-                      onChange={(e) => {
-                        handleInputChange("email", e.target.value);
-                        if (profileFormErrors.email) {
-                          setProfileFormErrors({ ...profileFormErrors, email: '' });
-                        }
-                      }}
-                      className={`input-field ${profileFormErrors.email ? 'border-red-500' : ''}`}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      className="input-field"
                       required
                     />
-                    {profileFormErrors.email && (
-                      <p className="mt-1 text-xs text-red-600">{profileFormErrors.email}</p>
-                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-secondary-700 mb-1">
@@ -255,17 +200,11 @@ const ProfilePage: React.FC = () => {
                     <input
                       type="tel"
                       value={editForm.phone}
-                      onChange={(e) => {
-                        handleInputChange("phone", e.target.value);
-                        if (profileFormErrors.phone) {
-                          setProfileFormErrors({ ...profileFormErrors, phone: '' });
-                        }
-                      }}
-                      className={`input-field ${profileFormErrors.phone ? 'border-red-500' : ''}`}
+                      onChange={(e) =>
+                        handleInputChange("phone", e.target.value)
+                      }
+                      className="input-field"
                     />
-                    {profileFormErrors.phone && (
-                      <p className="mt-1 text-xs text-red-600">{profileFormErrors.phone}</p>
-                    )}
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">

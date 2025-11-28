@@ -14,7 +14,7 @@ import {
   Target,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { tasksApi, subjectsApi, plansApi, aiApi } from "../services/api";
+import { tasksApi, subjectsApi, plansApi, aiApi } from "../services/mockApi";
 import type { Task, Subject, Plan, PlanItem } from "../types";
 
 const TaskManagement: React.FC = () => {
@@ -126,45 +126,9 @@ const TaskManagement: React.FC = () => {
   );
   const completedTasks = filteredTasks.filter((t) => t.status === "done");
 
-  const [taskFormErrors, setTaskFormErrors] = useState<Record<string, string>>({});
-
-  const validateTaskForm = () => {
-    const errors: Record<string, string> = {};
-    
-    if (!newTask.title.trim()) {
-      errors.title = "Task title is required";
-    } else if (newTask.title.trim().length < 3) {
-      errors.title = "Task title must be at least 3 characters";
-    } else if (newTask.title.trim().length > 255) {
-      errors.title = "Task title must be less than 255 characters";
-    }
-    
-    if (newTask.estimatedMins && (newTask.estimatedMins < 1 || newTask.estimatedMins > 1440)) {
-      errors.estimatedMins = "Estimated minutes must be between 1 and 1440";
-    }
-    
-    if (newTask.dueAt) {
-      const dueDate = new Date(newTask.dueAt);
-      if (isNaN(dueDate.getTime())) {
-        errors.dueAt = "Invalid date format";
-      } else if (dueDate < new Date()) {
-        errors.dueAt = "Due date cannot be in the past";
-      }
-    }
-    
-    setTaskFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTaskFormErrors({});
-    
-    if (!validateTaskForm()) {
-      return;
-    }
-    
-    if (!user?.id) return;
+    if (!user?.id || !newTask.title.trim()) return;
 
     await createTaskMutation.mutateAsync({
       userId: user.id,
@@ -189,12 +153,6 @@ const TaskManagement: React.FC = () => {
 
   const handleUpdateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTaskFormErrors({});
-    
-    if (!validateTaskForm()) {
-      return;
-    }
-    
     if (!editingTask) return;
 
     await updateTaskMutation.mutateAsync({
@@ -557,19 +515,13 @@ const TaskManagement: React.FC = () => {
                 <input
                   type="text"
                   value={newTask.title}
-                  onChange={(e) => {
-                    setNewTask({ ...newTask, title: e.target.value });
-                    if (taskFormErrors.title) {
-                      setTaskFormErrors({ ...taskFormErrors, title: '' });
-                    }
-                  }}
-                  className={`input-field ${taskFormErrors.title ? 'border-red-500' : ''}`}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, title: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter task title"
                   required
                 />
-                {taskFormErrors.title && (
-                  <p className="mt-1 text-xs text-red-600">{taskFormErrors.title}</p>
-                )}
               </div>
 
               <div>
@@ -600,20 +552,15 @@ const TaskManagement: React.FC = () => {
                   <input
                     type="number"
                     value={newTask.estimatedMins}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 60;
-                      setNewTask({ ...newTask, estimatedMins: value });
-                      if (taskFormErrors.estimatedMins) {
-                        setTaskFormErrors({ ...taskFormErrors, estimatedMins: '' });
-                      }
-                    }}
-                    className={`input-field ${taskFormErrors.estimatedMins ? 'border-red-500' : ''}`}
+                    onChange={(e) =>
+                      setNewTask({
+                        ...newTask,
+                        estimatedMins: parseInt(e.target.value) || 60,
+                      })
+                    }
+                    className="input-field"
                     min="1"
-                    max="1440"
                   />
-                  {taskFormErrors.estimatedMins && (
-                    <p className="mt-1 text-xs text-red-600">{taskFormErrors.estimatedMins}</p>
-                  )}
                 </div>
 
                 <div>
@@ -641,21 +588,14 @@ const TaskManagement: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Due Date (Optional)
                 </label>
-                  <input
-                    type="datetime-local"
-                    value={newTask.dueAt}
-                    onChange={(e) => {
-                      setNewTask({ ...newTask, dueAt: e.target.value });
-                      if (taskFormErrors.dueAt) {
-                        setTaskFormErrors({ ...taskFormErrors, dueAt: '' });
-                      }
-                    }}
-                    className={`input-field ${taskFormErrors.dueAt ? 'border-red-500' : ''}`}
-                    min={new Date().toISOString().slice(0, 16)}
-                  />
-                  {taskFormErrors.dueAt && (
-                    <p className="mt-1 text-xs text-red-600">{taskFormErrors.dueAt}</p>
-                  )}
+                <input
+                  type="datetime-local"
+                  value={newTask.dueAt}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, dueAt: e.target.value })
+                  }
+                  className="input-field"
+                />
               </div>
 
               <div className="flex justify-end space-x-2">

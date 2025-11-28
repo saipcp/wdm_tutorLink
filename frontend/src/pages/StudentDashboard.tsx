@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import {
   Plus,
   Search,
@@ -13,7 +12,6 @@ import {
   Star,
   TrendingUp,
 } from "lucide-react";
-import ChatWidget from "../components/Chat/ChatWidget";
 import { useAuth } from "../context/AuthContext";
 import {
   sessionsApi,
@@ -22,7 +20,7 @@ import {
   subjectsApi,
   messagingApi,
   dashboardApi,
-} from "../services/api";
+} from "../services/mockApi";
 import type {
   Session,
   Task,
@@ -35,7 +33,6 @@ import type {
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Dashboard data queries
   const { data: dashboardData } = useQuery({
@@ -107,51 +104,9 @@ const StudentDashboard: React.FC = () => {
     dueAt: "",
   });
 
-  const [taskFormErrors, setTaskFormErrors] = useState<Record<string, string>>(
-    {}
-  );
-
-  const validateTaskForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (!newTask.title.trim()) {
-      errors.title = "Task title is required";
-    } else if (newTask.title.trim().length < 3) {
-      errors.title = "Task title must be at least 3 characters";
-    } else if (newTask.title.trim().length > 255) {
-      errors.title = "Task title must be less than 255 characters";
-    }
-
-    if (
-      newTask.estimatedMins &&
-      (newTask.estimatedMins < 1 || newTask.estimatedMins > 1440)
-    ) {
-      errors.estimatedMins =
-        "Estimated minutes must be between 1 and 1440 (24 hours)";
-    }
-
-    if (newTask.dueAt) {
-      const dueDate = new Date(newTask.dueAt);
-      if (isNaN(dueDate.getTime())) {
-        errors.dueAt = "Invalid date format";
-      } else if (dueDate < new Date()) {
-        errors.dueAt = "Due date cannot be in the past";
-      }
-    }
-
-    setTaskFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    setTaskFormErrors({});
-
-    if (!validateTaskForm()) {
-      return;
-    }
-
-    if (!user?.id) return;
+    if (!user?.id || !newTask.title.trim()) return;
 
     await createTaskMutation.mutateAsync({
       userId: user.id,
@@ -216,7 +171,7 @@ const StudentDashboard: React.FC = () => {
         <div className="card text-center">
           <CheckSquare className="h-8 w-8 text-green-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-gray-900">
-            {dashboardData?.completedTasks || 0}
+            {dashboardData?.completedTasks.length || 0}
           </div>
           <div className="text-sm text-gray-600">Completed Tasks</div>
         </div>
@@ -224,7 +179,7 @@ const StudentDashboard: React.FC = () => {
         <div className="card text-center">
           <BookOpen className="h-8 w-8 text-purple-600 mx-auto mb-2" />
           <div className="text-2xl font-bold text-gray-900">
-            {dashboardData?.activePlans || 0}
+            {dashboardData?.activePlans.length || 0}
           </div>
           <div className="text-sm text-gray-600">Active Plans</div>
         </div>
@@ -248,36 +203,24 @@ const StudentDashboard: React.FC = () => {
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-3">
-            <button
-              onClick={() => navigate("/student/browse")}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
+            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
               <div className="font-medium text-gray-900">Find Tutors</div>
               <div className="text-sm text-gray-600">
                 Browse available tutors
               </div>
             </button>
-            <button
-              onClick={() => navigate("/student/browse")}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
+            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
               <div className="font-medium text-gray-900">Book Session</div>
               <div className="text-sm text-gray-600">
                 Schedule a new session
               </div>
             </button>
-            <button
-              onClick={() => navigate("/student/study-planner")}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
+            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
               <div className="font-medium text-gray-900">Study Planner</div>
               <div className="text-sm text-gray-600">Create study plans</div>
             </button>
           </div>
         </div>
-
-        {/* Chat widget */}
-        <ChatWidget />
 
         {/* Upcoming Sessions */}
         <div className="card">
@@ -288,30 +231,22 @@ const StudentDashboard: React.FC = () => {
             <Calendar className="h-5 w-5 text-gray-400" />
           </div>
           <div className="space-y-3">
-            {dashboardData?.upcomingSessions.slice(0, 3).map((session: any) => (
+            {dashboardData?.upcomingSessions.slice(0, 3).map((session) => (
               <div
                 key={session.id}
-                onClick={() => navigate("/student/sessions")}
-                className="p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                className="p-3 rounded-lg border border-gray-200"
               >
                 <div className="font-medium text-gray-900">
-                  {session.subjectName ||
-                    (session.subjectId &&
-                      subjects?.find((s) => s.id === session.subjectId)
-                        ?.name) ||
-                    "General Session"}
+                  {session.subjectId &&
+                    subjects?.find((s) => s.id === session.subjectId)?.name}
                 </div>
                 <div className="text-sm text-gray-600">
                   {new Date(session.startAt).toLocaleDateString()} at{" "}
-                  {new Date(session.startAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {new Date(session.startAt).toLocaleTimeString()}
                 </div>
               </div>
             ))}
-            {(!Array.isArray(dashboardData?.upcomingSessions) ||
-              !dashboardData.upcomingSessions.length) && (
+            {!dashboardData?.upcomingSessions.length && (
               <p className="text-gray-500 text-sm">No upcoming sessions</p>
             )}
           </div>
@@ -379,23 +314,13 @@ const StudentDashboard: React.FC = () => {
                 <input
                   type="text"
                   value={newTask.title}
-                  onChange={(e) => {
-                    setNewTask({ ...newTask, title: e.target.value });
-                    if (taskFormErrors.title) {
-                      setTaskFormErrors({ ...taskFormErrors, title: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    taskFormErrors.title ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, title: e.target.value })
+                  }
+                  className="input-field"
                   placeholder="Enter task title"
                   required
                 />
-                {taskFormErrors.title && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {taskFormErrors.title}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -425,27 +350,15 @@ const StudentDashboard: React.FC = () => {
                 <input
                   type="number"
                   value={newTask.estimatedMins}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 60;
-                    setNewTask({ ...newTask, estimatedMins: value });
-                    if (taskFormErrors.estimatedMins) {
-                      setTaskFormErrors({
-                        ...taskFormErrors,
-                        estimatedMins: "",
-                      });
-                    }
-                  }}
-                  className={`input-field ${
-                    taskFormErrors.estimatedMins ? "border-red-500" : ""
-                  }`}
+                  onChange={(e) =>
+                    setNewTask({
+                      ...newTask,
+                      estimatedMins: parseInt(e.target.value) || 60,
+                    })
+                  }
+                  className="input-field"
                   min="1"
-                  max="1440"
                 />
-                {taskFormErrors.estimatedMins && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {taskFormErrors.estimatedMins}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -455,22 +368,11 @@ const StudentDashboard: React.FC = () => {
                 <input
                   type="datetime-local"
                   value={newTask.dueAt}
-                  onChange={(e) => {
-                    setNewTask({ ...newTask, dueAt: e.target.value });
-                    if (taskFormErrors.dueAt) {
-                      setTaskFormErrors({ ...taskFormErrors, dueAt: "" });
-                    }
-                  }}
-                  className={`input-field ${
-                    taskFormErrors.dueAt ? "border-red-500" : ""
-                  }`}
-                  min={new Date().toISOString().slice(0, 16)}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, dueAt: e.target.value })
+                  }
+                  className="input-field"
                 />
-                {taskFormErrors.dueAt && (
-                  <p className="mt-1 text-xs text-red-600">
-                    {taskFormErrors.dueAt}
-                  </p>
-                )}
               </div>
 
               <div className="flex justify-end space-x-2">
@@ -500,10 +402,7 @@ const StudentDashboard: React.FC = () => {
                 {dashboardData.unreadNotifications} unread notifications
               </span>
             </div>
-            <button
-              onClick={() => navigate("/notifications")}
-              className="text-blue-600 hover:text-blue-700 text-sm"
-            >
+            <button className="text-blue-600 hover:text-blue-700 text-sm">
               View all
             </button>
           </div>
